@@ -6,30 +6,38 @@ import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.*;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.shapes.RectShape;
+import android.graphics.drawable.shapes.Shape;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 
 import java.util.Objects;
 
 public class MaskView extends View {
 
+    private final long ANIMATE_TIME = 800;//动画执行时间
     private Paint mPiant = new Paint();
     private float[] mLocation = new float[2];
     private int mCurrentRadius;
     private int mTargetId = -1;
     private Bitmap targetBitmap;
+    private onEnterEndListener onEnterEndListener;
+    private AccelerateInterpolator interpolator = new AccelerateInterpolator();
 
-    public OnRadiusOver getOnRadiusOver() {
-        return onRadiusOver;
+    public MaskView.onEnterEndListener getOnEnterEndListener() {
+        return onEnterEndListener;
     }
 
-    public void setOnRadiusOver(OnRadiusOver onRadiusOver) {
-        this.onRadiusOver = onRadiusOver;
+    public void setOnEnterEndListener(MaskView.onEnterEndListener onEnterEndListener) {
+        this.onEnterEndListener = onEnterEndListener;
     }
-
-    private OnRadiusOver onRadiusOver;
 
     public MaskView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -80,35 +88,51 @@ public class MaskView extends View {
             canvas.drawCircle(mLocation[0], mLocation[1], mCurrentRadius, mPiant);
     }
 
-    public void startAnimate(float[] location){
+    /**
+     * 进入时的动画
+     * @param location
+     */
+    public void startEnterAnimate(float[] location){
         mLocation = location;
-        animateRadius();
+        animateEnterRadius();
     }
 
-//    @Override
-//    public boolean onTouchEvent(MotionEvent event) {
-//        mLocation[0] = event.getX();
-//        mLocation[1] = event.getY();
-//        animateRadius();
-//        return true;
-//    }
+    /**
+     * 退出界面时的动画
+     * @param animatorListenerAdapter
+     */
+    public void startExitAnimate(AnimatorListenerAdapter animatorListenerAdapter){
+        animateExitRadius(animatorListenerAdapter);
+    }
 
-    private void animateRadius() {
+    private void animateExitRadius(AnimatorListenerAdapter animatorListenerAdapter) {
+        ObjectAnimator radiusDown = ObjectAnimator.ofInt(this, "mCurrentRadius",Math.max(getWidth(), getHeight()),0);
+        radiusDown.setDuration(ANIMATE_TIME);
+        radiusDown.setInterpolator(interpolator);
+        radiusDown.start();
+        radiusDown.addListener(animatorListenerAdapter);
+    }
+
+    private void animateEnterRadius() {
 
         ObjectAnimator radiusUp = ObjectAnimator.ofInt(this, "mCurrentRadius", 0, Math.max(getWidth(),getHeight()));
-        radiusUp.setDuration(800);
+        radiusUp.setDuration(ANIMATE_TIME);
+        radiusUp.setInterpolator(interpolator);
         radiusUp.start();
         radiusUp.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
-                if(onRadiusOver != null){
-                    onRadiusOver.onRadiuOverListener(mTargetId);
+                if(onEnterEndListener != null){
+                    onEnterEndListener.onEnterEnd(mTargetId);
                 }
             }
         });
     }
 
-    public interface OnRadiusOver{
-       void onRadiuOverListener(int targetId);
+    /**
+     * 进入动画执行完后的回调
+     */
+    public interface onEnterEndListener{
+       void onEnterEnd(int targetId);
     }
 }
